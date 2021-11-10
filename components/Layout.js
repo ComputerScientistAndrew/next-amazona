@@ -38,6 +38,7 @@ export default function Layout({ title, description, children }) {
         const newDarkMode = !darkMode;
         Cookies.set('darkMode', newDarkMode ? 'ON' : 'OFF');
     };
+    let cartQuantity = cart.cartItems.reduce((a, c) => a + c.quantity, 0);
     return (
         <div>
             <Head>
@@ -59,7 +60,7 @@ export default function Layout({ title, description, children }) {
                             <Switch checked={darkMode} onChange={darkModeChangeHandler} />
                             <NextLink href="/cart" passHref>
                                 <Link>
-                                    {cart.cartItems.length > 0 ? (<Badge color="secondary" badgeContent={cart.cartItems.length}>Cart</Badge>) : ("Cart")}
+                                    {cart.cartItems.length > 0 ? (<Badge color="secondary" badgeContent={cartQuantity}>Cart</Badge>) : ("Cart")}
                                 </Link>
                             </NextLink>
                             <NextLink href="/login" passHref>
