@@ -48,7 +48,7 @@ export default function Register() {
             <Layout title="Register">
                 <form onSubmit={handleSubmit(submitHandler)} className={classes.form}>
                     <Typography component="h1" variant="h1">
-                        Login
+                        Register
                     </Typography>
                     <List>
                         <ListItem>
