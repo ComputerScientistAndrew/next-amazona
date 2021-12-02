@@ -1,10 +1,11 @@
-import React, { useContext, useEffect } from "react";
-import dynamic from 'next/dynamic';
+import React, { useContext, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { Store } from "../utils/Store";
 import Layout from "../components/Layout";
 import {
     Button,
     Card,
+    CircularProgress,
     Grid,
     Link,
     List,
@@ -23,22 +24,29 @@ import axios from "axios";
 import { useRouter } from "next/router";
 import useStyles from "../utils/styles";
 import CheckoutWizard from "../components/CheckoutWizard";
+import { useSnackbar } from "notistack";
+import { getError } from "../utils/error";
+import Cookies from "js-cookie";
 
 function PlaceOrder() {
     const classes = useStyles();
     const router = useRouter();
+    const [loading, setLoading] = useState(false);
     const { state, dispatch } = useContext(Store);
     const {
+        userInfo,
         cart: { cartItems, shippingAddress, paymentMethod },
     } = state;
-    const round2 = num => Math.round(num * 100 + Number.EPSILON) / 100;
-    const itemsPrice = round2(cartItems.reduce((a, c) => a + c.price * c.quantity, 0));
+    const round2 = (num) => Math.round(num * 100 + Number.EPSILON) / 100;
+    const itemsPrice = round2(
+        cartItems.reduce((a, c) => a + c.price * c.quantity, 0)
+    );
     const shippingPrice = itemsPrice > 200 ? 0 : 15;
     const taxPrice = round2(itemsPrice * 0.15);
     const totalPrice = round2(itemsPrice + shippingPrice + taxPrice);
-    var usdFormatter = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
+    var usdFormatter = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
 
         // These options are needed to round to whole numbers if that's what you want.
         //minimumFractionDigits: 0, // (this suffices for whole numbers, but will print 2500.10 as $2,500.1)
@@ -46,11 +54,36 @@ function PlaceOrder() {
     });
     useEffect(() => {
         if (!paymentMethod) {
-            router.push('/payment');
+            router.push("/payment");
         }
-
     }, []);
-
+    const { closeSnackbar, enqueueSnackbar } = useSnackbar();
+    const placeOrderHandler = async () => {
+        closeSnackbar();
+        try {
+            setLoading(true);
+            const { data } = await axios.post("/api/orders", {
+                orderItems: cartItems,
+                shippingAddress,
+                paymentMethod,
+                itemsPrice,
+                taxPrice,
+                totalPrice,
+            }, {
+                headers: {
+                    authorization: `Bearer ${userInfo.token}`,
+                }
+            });
+            dispatch({ type: 'CART_CLEAR' });
+            Cookies.remove('cartItems');
+            setLoading(false);
+            router.push(`/order/${data._id}`)
+        } catch (err) {
+            console.log(err);
+            setLoading(false);
+            enqueueSnackbar(getError(err), { variant: "error" });
+        }
+    };
     return (
         <Layout title="Place Order">
             <CheckoutWizard activeStep={3} />
@@ -67,8 +100,8 @@ function PlaceOrder() {
                                 </Typography>
                             </ListItem>
                             <ListItem>
-                                {shippingAddress.fullName}, {shippingAddress.address},{' '}
-                                {shippingAddress.city}, {shippingAddress.postalCode},{' '}
+                                {shippingAddress.fullName}, {shippingAddress.address},{" "}
+                                {shippingAddress.city}, {shippingAddress.postalCode},{" "}
                                 {shippingAddress.country}
                             </ListItem>
                         </List>
@@ -80,9 +113,7 @@ function PlaceOrder() {
                                     Payment Method
                                 </Typography>
                             </ListItem>
-                            <ListItem>
-                                {paymentMethod}
-                            </ListItem>
+                            <ListItem>{paymentMethod}</ListItem>
                         </List>
                     </Card>
                     <Card className={classes.section}>
@@ -128,7 +159,9 @@ function PlaceOrder() {
                                                     <TableCell align="right">
                                                         <Typography>{item.quantity}</Typography>
                                                     </TableCell>
-                                                    <TableCell align="right"><Typography>{"$" + item.price}</Typography></TableCell>
+                                                    <TableCell align="right">
+                                                        <Typography>{"$" + item.price}</Typography>
+                                                    </TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
@@ -137,15 +170,12 @@ function PlaceOrder() {
                             </ListItem>
                         </List>
                     </Card>
-
                 </Grid>
                 <Grid item md={3} xs={12}>
                     <Card className={classes.section}>
                         <List>
                             <ListItem>
-                                <Typography variant="h2">
-                                    Order Summary
-                                </Typography>
+                                <Typography variant="h2">Order Summary</Typography>
                             </ListItem>
                             <ListItem>
                                 <Grid container>
@@ -153,7 +183,9 @@ function PlaceOrder() {
                                         <Typography>Items:</Typography>
                                     </Grid>
                                     <Grid item xs={6}>
-                                        <Typography align="right">{usdFormatter.format(itemsPrice)}</Typography>
+                                        <Typography align="right">
+                                            {usdFormatter.format(itemsPrice)}
+                                        </Typography>
                                     </Grid>
                                 </Grid>
                             </ListItem>
@@ -163,7 +195,9 @@ function PlaceOrder() {
                                         <Typography>Tax:</Typography>
                                     </Grid>
                                     <Grid item xs={6}>
-                                        <Typography align="right">{usdFormatter.format(taxPrice)}</Typography>
+                                        <Typography align="right">
+                                            {usdFormatter.format(taxPrice)}
+                                        </Typography>
                                     </Grid>
                                 </Grid>
                             </ListItem>
@@ -173,25 +207,39 @@ function PlaceOrder() {
                                         <Typography>Shipping:</Typography>
                                     </Grid>
                                     <Grid item xs={6}>
-                                        <Typography align="right">{usdFormatter.format(shippingPrice)}</Typography>
+                                        <Typography align="right">
+                                            {usdFormatter.format(shippingPrice)}
+                                        </Typography>
                                     </Grid>
                                 </Grid>
                             </ListItem>
                             <ListItem>
                                 <Grid container>
                                     <Grid item xs={6}>
-                                        <Typography><strong>Total:</strong></Typography>
+                                        <Typography>
+                                            <strong>Total:</strong>
+                                        </Typography>
                                     </Grid>
                                     <Grid item xs={6}>
-                                        <Typography align="right"><strong>{usdFormatter.format(totalPrice)}</strong></Typography>
+                                        <Typography align="right">
+                                            <strong>{usdFormatter.format(totalPrice)}</strong>
+                                        </Typography>
                                     </Grid>
                                 </Grid>
                             </ListItem>
                             <ListItem>
-                                <Button variant="contained" color="primary" fullWidth>
+                                <Button
+                                    onClick={placeOrderHandler}
+                                    variant="contained"
+                                    color="primary"
+                                    fullWidth
+                                >
                                     Place Order
                                 </Button>
                             </ListItem>
+                            {loading && (<ListItem>
+                                <CircularProgress />
+                            </ListItem>)}
                         </List>
                     </Card>
                 </Grid>
@@ -200,4 +248,4 @@ function PlaceOrder() {
     );
 }
 
-export default dynamic(() => Promise.resolve(PlaceOrder), { ssr: false })
+export default dynamic(() => Promise.resolve(PlaceOrder), { ssr: false });

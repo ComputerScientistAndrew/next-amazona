@@ -19,17 +19,18 @@ export default function Shipping() {
     const { state, dispatch } = useContext(Store);
     const { userInfo, cart: { shippingAddress } } = state;
     const router = useRouter();
-    const { redirect } = router.query;
     useEffect(() => {
-        if (userInfo) {
+        if (!userInfo) {
             router.push('/login?redirect=/shipping');
         }
+
         setValue('fullName', shippingAddress.fullName);
         setValue('address', shippingAddress.address);
         setValue('city', shippingAddress.city);
         setValue('state', shippingAddress.state);
         setValue('postalCode', shippingAddress.postalCode);
         setValue('country', shippingAddress.country);
+
     }, []);
 
     const classes = useStyles();
